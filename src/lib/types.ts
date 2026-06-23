@@ -86,19 +86,31 @@ export interface ResolvedSources {
   writingUrls: string[];
 }
 
-/** GitHub evidence tool — reads authored commits, languages, first-use dates. */
+/** One authored repo with the signals we reason over. */
+export interface AuthoredRepo {
+  name: string;
+  url: string;
+  description?: string;
+  languages: string[];
+  /** package.json dependency names (lowercased), for framework detection. */
+  deps: string[];
+  topics: string[];
+  createdAt?: string;
+  stars: number;
+  isFork: boolean;
+}
+
+/** GitHub evidence tool — account age, authored repos, framework signals. */
 export interface GitHubEvidence {
-  /** Repos the user actually authored in (fork excluded), with primary languages. */
-  authoredRepos: Array<{
-    name: string;
-    url: string;
-    languages: string[];
-    firstAuthoredCommitDate?: string;
-    isFork: boolean;
-  }>;
-  /** Per-language first authored-commit date — the timeline-reconciliation source. */
-  firstAuthoredByLanguage: Record<string, string>;
-  /** Crude authorship signal: authored vs total commits sampled. */
+  /** Whether the handle resolved to a real account. */
+  exists: boolean;
+  /** Account creation date — the hard floor for timeline reconciliation. */
+  accountCreatedAt?: string;
+  /** Earliest authored-repo creation date — earliest provable activity. */
+  earliestEvidenceDate?: string;
+  /** Repos the user actually authored (forks excluded). */
+  authoredRepos: AuthoredRepo[];
+  /** authored (non-fork) repos / total repos sampled. */
   authoredRatio: number;
 }
 

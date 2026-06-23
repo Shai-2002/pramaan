@@ -1,36 +1,102 @@
-// RECONCILE — decide if the evidence backs the claim, and write a cited reason.
-// The defensibility rule: cite an artifact or return "unverified". Never invent evidence.
+// RECONCILE — decide the verdict and write a cited, defensible reason.
 //
-// STUB: with no LLM key wired, applies the deterministic fallback (no artifacts ->
-// unverified). The fleet implements the real reconcile with the Vercel AI SDK
-// (generateObject) over OpenRouter, reasoning ONLY over retrieved evidence.
+// Verdict is DETERMINISTIC (date logic), so correctness never depends on the LLM:
+//   - timeline contradiction  -> "contradicted"  (the honeypot kill-shot)
+//   - no artifacts found       -> "unverified"   (the keyword-stuffer)
+//   - authored artifacts found -> "verified"
+// The LLM (cheap, non-reasoning gemini-2.5-flash-lite) only rewrites the plain-language
+// reason, constrained to the artifacts we pass and REQUIRED to stay consistent with the
+// verdict. A guard rejects any "verified" reason that smuggles in doubt language. If the
+// key is missing or anything fails, we keep the deterministic reason. The model can NEVER
+// change the verdict or invent evidence.
 
-import type { EvidenceBundle, EvidenceCard } from "@/lib/types";
+import { generateText } from "ai";
+import { createOpenRouter } from "@openrouter/ai-sdk-provider";
+import type { EvidenceBundle, EvidenceCard, Verdict } from "@/lib/types";
 
-export async function reconcile(bundle: EvidenceBundle): Promise<EvidenceCard> {
-  const authored = bundle.artifacts.filter((a) => a.authored);
+const MODEL = process.env.OPENROUTER_MODEL ?? "google/gemini-2.5-flash-lite";
+const DOUBT = /insufficient|cannot verify|can't verify|no evidence|unverified|not enough|unable to/i;
 
-  // No artifacts found -> the keyword-stuffer case. Honest "unverified".
-  if (bundle.artifacts.length === 0) {
+function decide(bundle: EvidenceBundle): { verdict: Verdict; confidence: number; reason: string } {
+  const s = bundle.signals as Record<string, unknown>;
+  if (s.accountExists === false) {
     return {
-      skill: bundle.skill,
       verdict: "unverified",
-      confidence: 0.6,
-      citedArtifacts: [],
-      reason: `[stub] No artifacts found backing "${bundle.skill}". Real reconcile (LLM over evidence) wired once OPENROUTER_API_KEY is set.`,
-      flags: bundle.flags,
+      confidence: 0.9,
+      reason: `No GitHub account resolved for this handle, so no artifact backs "${bundle.skill}".`,
     };
   }
+  if (s.contradiction === true) {
+    return {
+      verdict: "contradicted",
+      confidence: 0.95,
+      reason: String(s.contradictionReason ?? `Claimed timeline for "${bundle.skill}" is impossible given the account age.`),
+    };
+  }
+  if (bundle.artifacts.length === 0) {
+    return {
+      verdict: "unverified",
+      confidence: 0.75,
+      reason: `No authored repository, live deployment, or published work found that backs "${bundle.skill}".`,
+    };
+  }
+  const titles = bundle.artifacts.slice(0, 2).map((x) => x.title ?? x.url).join(", ");
+  return {
+    verdict: "verified",
+    confidence: Math.min(0.95, 0.6 + 0.12 * bundle.artifacts.length),
+    reason: `Authored evidence backs "${bundle.skill}": ${titles}.`,
+  };
+}
 
-  // TODO(fleet): real LLM reconcile — pass {claim, artifacts, signals} and require
-  // a JSON {verdict, confidence, citedArtifactUrls[], reason}; validate every cited
-  // url exists in `artifacts`; downgrade to "unverified" if the model cites nothing.
+async function polishReason(
+  bundle: EvidenceBundle,
+  base: { verdict: Verdict; reason: string },
+): Promise<string> {
+  // Skip the LLM for "unverified": there's nothing to cite, and the deterministic line is exact.
+  if (!process.env.OPENROUTER_API_KEY || base.verdict === "unverified") return base.reason;
+  try {
+    const openrouter = createOpenRouter({ apiKey: process.env.OPENROUTER_API_KEY });
+    const cited =
+      bundle.artifacts
+        .map((a) => `- ${a.title ?? a.url} (${a.kind}${a.date ? `, ${a.date.slice(0, 10)}` : ""})`)
+        .join("\n") || "(none)";
+    const guide =
+      base.verdict === "verified"
+        ? "The verdict is VERIFIED. Affirm in 1-2 sentences that the skill is backed, naming 1-3 of the listed artifacts. Do NOT say the evidence is insufficient, unverified, or that you cannot verify it."
+        : "The verdict is CONTRADICTED. In 1-2 sentences state plainly why the claim is chronologically impossible, using the account-creation year vs the claimed start year from the signals.";
+    const { text } = await generateText({
+      model: openrouter(MODEL),
+      system:
+        "You write a recruiter-facing justification for a skill-verification verdict. " +
+        "Stay strictly consistent with the given verdict. Use ONLY the listed artifacts and signal dates. " +
+        "Never mention a skill, employer, repo, or date not present in the evidence. Be specific and honest; no hype.",
+      prompt:
+        `Skill: ${bundle.skill}\nVerdict: ${base.verdict}\n${guide}\n` +
+        `Signal dates: ${JSON.stringify({
+          accountCreatedAt: (bundle.signals as Record<string, unknown>).accountCreatedAt,
+          accountYear: (bundle.signals as Record<string, unknown>).accountYear,
+          impliedStartYear: (bundle.signals as Record<string, unknown>).impliedStartYear,
+        })}\nCited artifacts:\n${cited}`,
+      maxOutputTokens: 220,
+    });
+    const out = text.trim();
+    // Consistency guard: a "verified" reason must not smuggle in doubt language.
+    if (!out || (base.verdict === "verified" && DOUBT.test(out))) return base.reason;
+    return out;
+  } catch {
+    return base.reason; // robustness: deterministic reason if the LLM is unavailable
+  }
+}
+
+export async function reconcile(bundle: EvidenceBundle): Promise<EvidenceCard> {
+  const base = decide(bundle);
+  const reason = await polishReason(bundle, base);
   return {
     skill: bundle.skill,
-    verdict: authored.length > 0 ? "verified" : "unverified",
-    confidence: 0.5,
-    citedArtifacts: authored.slice(0, 3),
-    reason: `[stub] ${authored.length} authored artifact(s) found for "${bundle.skill}".`,
+    verdict: base.verdict,
+    confidence: base.confidence,
+    citedArtifacts: base.verdict === "unverified" ? [] : bundle.artifacts.slice(0, 4),
+    reason,
     flags: bundle.flags,
   };
 }
