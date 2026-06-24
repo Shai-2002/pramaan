@@ -19,6 +19,8 @@
     "zod": "^4.4.3"
   },
   "devDependencies": {
+    "@slidev/cli": "^52.16.0",
+    "@slidev/theme-default": "^0.25.0",
     "@tailwindcss/postcss": "^4",
     "@types/node": "^20",
     "@types/react": "^19",
@@ -26,6 +28,7 @@
     "eslint": "^9",
     "eslint-config-next": "16.2.9",
     "playwright": "^1.61.1",
+    "playwright-chromium": "^1.61.1",
     "tailwindcss": "^4",
     "typescript": "^5"
   }

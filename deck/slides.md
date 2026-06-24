@@ -83,7 +83,24 @@ For every claimed skill, Pramaan runs one agent loop:
 
 # User journey
 
-[[DIAGRAM: userJourney]]
+```mermaid
+flowchart LR
+  R[Recruiter pastes<br/>handle + claimed skills] --> P[Pramaan<br/>per-skill loop]
+  P --> V[VERIFIED<br/>commits + live deploy]
+  P --> X[CONTRADICTED<br/>timeline impossible]
+  P --> U[UNVERIFIED<br/>no artifacts]
+  V --> T[Trust the screen,<br/>not the resume]
+  X --> T
+  U --> T
+  classDef g fill:#d6f5d6,stroke:#2e7d32,color:#1b5e20
+  classDef b fill:#fde0e0,stroke:#c62828,color:#7f1d1d
+  classDef w fill:#fff3cd,stroke:#f9a825,color:#7a5900
+  class V g
+  class X b
+  class U w
+```
+
+<div class="text-sm opacity-60">Recruiter pastes a profile; Pramaan returns cited Evidence Cards in seconds.</div>
 
 **Candidate** submits Redrob profile + linked artifacts (GitHub, deploys, writing).
 **Pramaan** runs the loop per skill, in the background — no candidate friction.
@@ -94,7 +111,25 @@ For every claimed skill, Pramaan runs one agent loop:
 
 # AI logic & decision flow
 
-[[DIAGRAM: aiDecisionFlow]]
+```mermaid
+flowchart LR
+  S([Skill claim]) --> F[RESOLVE + FETCH<br/>commits · deploys · writing]
+  F --> G{Evidence<br/>found?}
+  G -- No --> U[UNVERIFIED]
+  G -- Yes --> TL{Timeline<br/>reconciles?}
+  TL -- No --> X[CONTRADICTED<br/>honeypot kill-shot]
+  TL -- Yes --> A{Authored &<br/>in-window?}
+  A -- No --> U
+  A -- Yes --> V[VERIFIED<br/>+ cited artifacts]
+  classDef g fill:#d6f5d6,stroke:#2e7d32,color:#1b5e20
+  classDef b fill:#fde0e0,stroke:#c62828,color:#7f1d1d
+  classDef w fill:#fff3cd,stroke:#f9a825,color:#7a5900
+  class V g
+  class X b
+  class U w
+```
+
+<div class="text-sm opacity-60">Verdict is deterministic on evidence; the LLM only writes the reason.</div>
 
 The verdict is **deterministic on evidence, reasoned by the LLM**:
 
@@ -109,7 +144,20 @@ Confidence scales with evidence strength: a merged commit with a diff beats a on
 
 # System architecture
 
-[[DIAGRAM: systemArchitecture]]
+```mermaid
+flowchart LR
+  UI[Next.js UI<br/>on Vercel] --> API[/api/verify/]
+  API --> O[Agent Orchestrator<br/>Vercel AI SDK]
+  O --> GH[GitHub API]
+  O --> JR[Jina Reader]
+  O --> PW[Playwright]
+  O --> EX[Exa]
+  O --> LLM[OpenRouter LLM<br/>reconcile]
+  O --> CARD[Evidence Card JSON]
+  CARD --> UI
+```
+
+<div class="text-sm opacity-60">Serverless on Vercel; read-only public-data connectors; model-agnostic via OpenRouter.</div>
 
 - **Frontend:** Next.js on Vercel — profile input + Evidence Card UI
 - **Orchestration:** Vercel AI SDK agent loop; LLM via **OpenRouter** (model-agnostic, swap for cost)
@@ -122,7 +170,16 @@ Stateless per run, serverless, no infra to babysit. Every connector is read-only
 
 # Data, context & intelligence layer
 
-[[DIAGRAM: dataIntelligenceLayer]]
+```mermaid
+flowchart LR
+  C[Claims<br/>not scored as text] --> E[Evidence<br/>commits · deploys · writing]
+  E --> W{In window?<br/>authored?}
+  W --> CARD[Evidence Card<br/>verdict + confidence + citations]
+  CARD --> TR[(Trust Layer<br/>per-skill feature)]
+  TR --> RK[[Redrob Resume Ranker]]
+```
+
+<div class="text-sm opacity-60">Retrieval-grounded: the model reasons over fetched evidence, not profile text.</div>
 
 Pramaan's intelligence is **retrieval-grounded** — the model reasons over evidence we fetched, not over training memory or profile text.
 
@@ -152,7 +209,18 @@ Serverless on Vercel means it scales to Redrob's funnel with zero ops.
 
 # Redrob ecosystem integration
 
-[[DIAGRAM: ecosystemIntegration]]
+```mermaid
+flowchart LR
+  P[Candidate profile<br/>self-authored claims] --> API[Pramaan API<br/>verify]
+  API --> ENG[Provenance engine]
+  ENG --> API
+  API -->|trust feature per skill| RK[[Resume Ranker]]
+  API -->|verified -> badge| BADGE{{Verified-skill badge}}
+  BADGE --> P
+  RK --> H([Better-trusted hire])
+```
+
+<div class="text-sm opacity-60">A trust layer beneath the Resume Ranker; the Verified badge compounds the network effect.</div>
 
 Pramaan slots in as a **trust layer beneath the Resume Ranker** — a clean contract, not a rebuild:
 
@@ -206,7 +274,24 @@ Each step adds **depth on the core verdict**, not surface area.
 
 # Demo
 
-[[DIAGRAM: userJourney]]
+```mermaid
+flowchart LR
+  R[Recruiter pastes<br/>handle + claimed skills] --> P[Pramaan<br/>per-skill loop]
+  P --> V[VERIFIED<br/>commits + live deploy]
+  P --> X[CONTRADICTED<br/>timeline impossible]
+  P --> U[UNVERIFIED<br/>no artifacts]
+  V --> T[Trust the screen,<br/>not the resume]
+  X --> T
+  U --> T
+  classDef g fill:#d6f5d6,stroke:#2e7d32,color:#1b5e20
+  classDef b fill:#fde0e0,stroke:#c62828,color:#7f1d1d
+  classDef w fill:#fff3cd,stroke:#f9a825,color:#7a5900
+  class V g
+  class X b
+  class U w
+```
+
+<div class="text-sm opacity-60">Recruiter pastes a profile; Pramaan returns cited Evidence Cards in seconds.</div>
 
 **Live, 60 seconds:** paste a GitHub handle + claimed skills → three Evidence Cards render side by side.
 

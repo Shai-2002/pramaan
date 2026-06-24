@@ -36,6 +36,9 @@ yarn-error.log*
 # vercel
 .vercel
 
+# generated deck preview images (the PDF is the deliverable)
+/deck/png
+
 # typescript
 *.tsbuildinfo
 next-env.d.ts
