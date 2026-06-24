@@ -27,6 +27,13 @@ const PRESETS: Preset[] = [
     skills: "React, Kubernetes, Terraform, PyTorch, GraphQL",
     hint: "Dense buzzwords, zero discoverable artifacts.",
   },
+  {
+    label: "Honeypot account",
+    tag: "→ contradicted",
+    handle: "pramaan-demo-honeypot",
+    skills: "React:since 2017",
+    hint: "Throwaway 2026 account claiming 8 years — its own server-stamped creation date busts it.",
+  },
 ];
 
 const VERDICT: Record<Verdict, { pill: string; ring: string; label: string }> = {

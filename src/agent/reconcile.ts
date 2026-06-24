@@ -13,11 +13,13 @@
 import { generateText } from "ai";
 import { createOpenRouter } from "@openrouter/ai-sdk-provider";
 import type { EvidenceBundle, EvidenceCard, Verdict } from "@/lib/types";
+import { llmBudgetAvailable, recordLlmCall } from "@/lib/ratelimit";
 
 const MODEL = process.env.OPENROUTER_MODEL ?? "google/gemini-2.5-flash-lite";
 const DOUBT = /insufficient|cannot verify|can't verify|no evidence|unverified|not enough|unable to/i;
 
-function decide(bundle: EvidenceBundle): { verdict: Verdict; confidence: number; reason: string } {
+/** Deterministic verdict — the credibility core. Exported for unit testing. */
+export function decide(bundle: EvidenceBundle): { verdict: Verdict; confidence: number; reason: string } {
   const s = bundle.signals as Record<string, unknown>;
   if (s.accountExists === false) {
     return {
@@ -33,11 +35,14 @@ function decide(bundle: EvidenceBundle): { verdict: Verdict; confidence: number;
       reason: String(s.contradictionReason ?? `Claimed timeline for "${bundle.skill}" is impossible given the account age.`),
     };
   }
-  if (bundle.artifacts.length === 0) {
+  // Gate "verified" on STRONG evidence (authored repos or content-matched pages), not on
+  // bare liveness. Falls back to artifact count when the signal is absent (older bundles).
+  const strong = typeof s.strongEvidenceCount === "number" ? s.strongEvidenceCount : bundle.artifacts.length;
+  if (strong === 0) {
     return {
       verdict: "unverified",
       confidence: 0.75,
-      reason: `No authored repository, live deployment, or published work found that backs "${bundle.skill}".`,
+      reason: `No authored repository, skill-relevant deployment, or published work found that backs "${bundle.skill}".`,
     };
   }
   const titles = bundle.artifacts.slice(0, 2).map((x) => x.title ?? x.url).join(", ");
@@ -54,7 +59,11 @@ async function polishReason(
 ): Promise<string> {
   // Skip the LLM for "unverified": there's nothing to cite, and the deterministic line is exact.
   if (!process.env.OPENROUTER_API_KEY || base.verdict === "unverified") return base.reason;
+  // Spend circuit-breaker: once the daily LLM budget is spent, keep the (correct)
+  // deterministic reason instead of calling the model. The verdict is unaffected.
+  if (!llmBudgetAvailable()) return base.reason;
   try {
+    recordLlmCall();
     const openrouter = createOpenRouter({ apiKey: process.env.OPENROUTER_API_KEY });
     const cited =
       bundle.artifacts

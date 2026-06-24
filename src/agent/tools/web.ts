@@ -3,6 +3,7 @@
 //   - readable content via Jina AI Reader (https://r.jina.ai/<url>), free/no-key
 
 import type { WebEvidence } from "@/lib/types";
+import { isSafeFetchTarget } from "@/lib/url-safety";
 
 async function withTimeout(url: string, ms: number, init?: RequestInit) {
   const ctrl = new AbortController();
@@ -15,6 +16,9 @@ async function withTimeout(url: string, ms: number, init?: RequestInit) {
 }
 
 export async function getWebEvidence(url: string): Promise<WebEvidence> {
+  // SSRF guard: never fetch a URL that resolves to an internal/private host.
+  if (!(await isSafeFetchTarget(url))) return { url, live: false };
+
   let status: number | undefined;
   let live = false;
   try {

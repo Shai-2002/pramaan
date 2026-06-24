@@ -1,6 +1,6 @@
 // The Pramaan agent loop: RESOLVE -> FETCH -> ATTRIBUTE -> RECONCILE -> EMIT.
 
-import type { ProfileInput, ProfileVerification, Artifact } from "@/lib/types";
+import type { ProfileInput, ProfileVerification } from "@/lib/types";
 import { getGitHubEvidence } from "@/agent/tools/github";
 import { getWebEvidence } from "@/agent/tools/web";
 import { buildBundle } from "@/agent/attribute";
@@ -29,18 +29,10 @@ export async function verifyProfile(
     Promise.all([...sources.deployedUrls, ...sources.writingUrls].map(getWebEvidence)),
   ]);
 
-  const liveDeploys: Artifact[] = web
-    .filter((w) => w.live)
-    .map((w) => ({
-      kind: sources.writingUrls.includes(w.url) ? "writing" : "deploy",
-      url: w.url,
-      detail: `live (HTTP ${w.status})`,
-      authored: true,
-    }));
-
   // ATTRIBUTE + RECONCILE per claim (reconcile may call the cheap LLM in parallel).
+  // buildBundle decides per-skill which live URLs back the claim (by content match).
   const cards = await Promise.all(
-    input.claims.map((claim) => reconcile(buildBundle(claim, gh, liveDeploys))),
+    input.claims.map((claim) => reconcile(buildBundle(claim, gh, web, sources.writingUrls))),
   );
 
   return {

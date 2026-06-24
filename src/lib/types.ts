@@ -19,12 +19,13 @@ export type SkillClaim = z.infer<typeof SkillClaimSchema>;
 
 /** What a recruiter pastes in: a handle + the claims to check, plus optional links. */
 export const ProfileInputSchema = z.object({
-  githubHandle: z.string().min(1),
-  claims: z.array(SkillClaimSchema).min(1),
+  githubHandle: z.string().min(1).max(39), // GitHub's max username length
+  /** Bounded so a public visitor can't fan out unlimited GitHub/LLM calls per request. */
+  claims: z.array(SkillClaimSchema).min(1).max(8),
   /** Deployed app / portfolio URLs the candidate says they built. */
-  deployedUrls: z.array(z.string().url()).optional(),
+  deployedUrls: z.array(z.string().url()).max(4).optional(),
   /** Blog / writing URLs that back "technical writing" style claims. */
-  writingUrls: z.array(z.string().url()).optional(),
+  writingUrls: z.array(z.string().url()).max(4).optional(),
 });
 export type ProfileInput = z.infer<typeof ProfileInputSchema>;
 
@@ -96,6 +97,8 @@ export interface AuthoredRepo {
   deps: string[];
   topics: string[];
   createdAt?: string;
+  /** ISO date of the user's EARLIEST authored commit in this repo (provenance floor). */
+  firstAuthoredCommitDate?: string;
   stars: number;
   isFork: boolean;
 }
@@ -108,6 +111,8 @@ export interface GitHubEvidence {
   accountCreatedAt?: string;
   /** Earliest authored-repo creation date — earliest provable activity. */
   earliestEvidenceDate?: string;
+  /** Earliest authored COMMIT date across sampled repos — a stronger provenance floor. */
+  earliestAuthoredCommitDate?: string;
   /** Repos the user actually authored (forks excluded). */
   authoredRepos: AuthoredRepo[];
   /** authored (non-fork) repos / total repos sampled. */
