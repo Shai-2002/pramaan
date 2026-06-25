@@ -55,6 +55,16 @@ async function clickPreset(page, nameRe) {
   await resp;
 }
 
+// Bring the Evidence-Card results section to the top of the viewport (it renders below
+// the tall header, so without this the verdicts are off-screen in the recording).
+async function showResults(page) {
+  await page.locator("section").first().scrollIntoViewIfNeeded();
+  await page.evaluate(() => {
+    const s = document.querySelector("section");
+    if (s) s.scrollIntoView({ block: "start", behavior: "smooth" });
+  });
+}
+
 const main = async () => {
   const browser = await chromium.launch();
   const context = await browser.newContext({
@@ -72,27 +82,31 @@ const main = async () => {
   await page.goto(BASE, { waitUntil: "networkidle" });
   await pause(page, 5500);
 
-  // Beat 2 — VERIFIED
+  // Beat 2 — VERIFIED (show the cards + pan through the citations)
   mark("B2-verified-click");
   await clickPreset(page, /^Real senior dev/);
   await page.getByText("VERIFIED").first().waitFor({ timeout: 30000 });
-  await pause(page, 2000);
-  await page.mouse.wheel(0, 380); // reveal citations
-  await pause(page, 7500);
-  await page.mouse.wheel(0, -380);
-  await pause(page, 1500);
+  await pause(page, 800);
+  await showResults(page);
+  await pause(page, 6000);
+  await page.mouse.wheel(0, 460); // pan down through the 4 cited cards
+  await pause(page, 6000);
 
   // Beat 3 — CONTRADICTED (the kill-shot)  [/^Honeypot →/ avoids the "Honeypot account" preset]
   mark("B3-contradicted-click");
   await clickPreset(page, /^Honeypot →/);
   await page.getByText("CONTRADICTED").first().waitFor({ timeout: 30000 });
-  await pause(page, 9500);
+  await pause(page, 600);
+  await showResults(page);
+  await pause(page, 8500);
 
   // Beat 4 — UNVERIFIED
   mark("B4-unverified-click");
   await clickPreset(page, /^Keyword-stuffer/);
   await page.getByText("UNVERIFIED").first().waitFor({ timeout: 30000 });
-  await pause(page, 6500);
+  await pause(page, 600);
+  await showResults(page);
+  await pause(page, 5500);
   mark("B5-typed-start");
 
   // Beat 5 — prove it's live: type a real handle by hand
@@ -111,7 +125,9 @@ const main = async () => {
   await verify.click();
   await resp;
   await page.getByText(/VERIFIED|UNVERIFIED|CONTRADICTED/).first().waitFor({ timeout: 30000 });
-  await pause(page, 6500);
+  await pause(page, 600);
+  await showResults(page);
+  await pause(page, 6000);
   mark("END");
 
   await context.close(); // flushes the .webm
