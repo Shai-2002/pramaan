@@ -40,6 +40,8 @@ yarn-error.log*
 
 # generated deck preview images (the PDF is the deliverable)
 /deck/png
+# demo capture artifacts (raw video + final mux; submission portal gets the final)
+/deck/video
 
 # typescript
 *.tsbuildinfo
