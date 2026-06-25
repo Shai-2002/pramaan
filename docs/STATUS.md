@@ -33,14 +33,24 @@ per-skill Evidence Cards — VERIFIED / UNVERIFIED / CONTRADICTED — with real 
 - **Deck** (`deck/pramaan.pdf`): 16 slides, 5 mandatory diagrams (Slidev). **LICENSE** (MIT).
 - **Docs**: `personas.md`, `qa-defense.md`, `methodology.md`, `PLAN.md`, `shot-list.md` (75s video script).
 
-## Left 🔲 (all Shai-gated)
-1. **Rotate keys** (MANDATORY before deploy) — mint a NEW GitHub fine-grained PAT (read-only,
-   public repos) + a NEW OpenRouter key (set a hard credit cap); revoke the old ones.
-2. **Deploy** — `vercel link` + enter the rotated keys via `vercel env add` (you type them),
-   then `vercel --prod`. Repo is on GitHub already (public + MIT).
-3. **Honeypot account** — create the `pramaan-demo-honeypot` GitHub account (2026) + push a
-   trivial repo; the 4th UI preset ("React since 2017") then busts it live.
-4. **Demo video** — record the 75s walkthrough from `docs/shot-list.md` on the deployed URL.
+## Live 🚀 (2026-06-25)
+- **Deployed:** https://pramaan-one.vercel.app — public, READY, verified live (leerob→verified
+  with cited repos + commit dates; correct `<title>`). Vercel project
+  `shais-projects-be083a1f/pramaan`, auto-connected to the GitHub repo (pushes auto-deploy).
+- **Demo video:** `deck/video/pramaan-demo-final-tts.mp4` (61.5s, narrated — scratch *Samantha*
+  TTS voiceover, beats aligned). Silent master: `deck/video/pramaan-demo-silent.mp4`; script:
+  `docs/voiceover.md`. Swap in Shai's own voice anytime:
+  `node scripts/mux.mjs <yourAudio> deck/video/pramaan-demo-final.mp4`.
+
+## Left 🔲
+1. **Rotate keys (post-event) + set an OpenRouter credit cap NOW.** The CURRENT GITHUB_TOKEN +
+   OPENROUTER_API_KEY (pasted in chat) are live in the Vercel prod env. The endpoint is public:
+   in-code guardrails cap throughput (per-IP + daily LLM cap → $0 degrade + hourly GitHub cap),
+   but the real spend backstop is a hard credit cap on the OpenRouter key — set it in the
+   dashboard today. Rotate both keys after the event.
+2. **Optional polish:** record Shai's own voiceover (replaces the TTS via the mux command above);
+   create `pramaan-demo-honeypot` GitHub account for the live-account demo beat (the leerob/2010
+   kill-shot already carries it).
 
 ## Run it
 ```bash
@@ -54,6 +64,7 @@ Re-export the deck PDF: `npx playwright install chromium && npx slidev export de
 Screenshots: `OUT_DIR=. node scripts/shot.mjs` (needs the dev server on 3211).
 
 ## Keys
-`.env.local` carries `GITHUB_TOKEN` + `OPENROUTER_API_KEY`. **These keys were pasted in chat —
-rotate them (item 1 above) before they go into a public Vercel deploy.** They are NOT in git
-(.env* is gitignored; verified `git ls-files` shows no env file tracked).
+`.env.local` carries `GITHUB_TOKEN` + `OPENROUTER_API_KEY`; the same values are set in the
+Vercel **production** env (encrypted, not public). They are NOT in git (.env* is gitignored;
+`git ls-files` shows no env file tracked). **These keys were pasted in chat and are now live on
+a public endpoint — set an OpenRouter credit cap today and rotate both after the event** (Left §1).
